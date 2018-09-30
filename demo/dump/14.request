@@ -1,0 +1,16 @@
+GET /echo?encoding=text HTTP/1.1
+Host: demos.kaazing.com
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:62.0) Gecko/20100101 Firefox/62.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3
+Accept-Encoding: gzip, deflate
+Sec-WebSocket-Version: 13
+Origin: http://www.websocket.org
+Sec-WebSocket-Extensions: permessage-deflate
+Sec-WebSocket-Key: XX9mQbu9dxQbmPyCktL8hg==
+Connection: keep-alive, Upgrade
+Pragma: no-cache
+Cache-Control: no-cache
+Upgrade: websocket
+
+œáÜì³³åÁµ˜®–µ˜æÁ”¸Ã­éÌÙ„¾¿á‚·‰úœ¥¿YwÆÔ+qÑŸ|qÑ×+PñòG-…ènzöĞhsÀËœv´@á$Û#ŠVİ4Áİ4‰Vü¬:`¶Öß%•œ„£œ—ÖÌÿü¤Êè·óÊèÿ¤ëÈÚÈ–¼ÀáÁÏøçÈùãœóº¼¡tÙ×ÓrÎœ„rÎÔÓSîñ¿.šë–yéÓpßÈœõ«Ïm§Ä¬ÕÂ»M‚Â»Õã› ¹ï:Éœ–Àªœ,.Š~Aé|Gş7[GşfŞZ`ª@ILÙxOEïcœyø¼+—ßxY‘È3‘È{Y°è^5ÍœDšï|“Ùgœ‡ŒİÕã¾x§å©3ğå©{§Ä‰^Ë¹ıDâî|äç¸gŠ€ÄÜŠ€C&§rˆ€ëãÉ³
