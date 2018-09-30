@@ -3,3 +3,7 @@ __recovery
 Win32
 *.dcu
 *.bak
+*.dproj.local
+*.identcache
+*.res
+*.drc
