@@ -4,6 +4,7 @@ interface
 
 type
   TWsOpcode = Int8;
+  TWsCloseCode = UInt16;
 
 const
   wsNoFrame = -1;
@@ -52,6 +53,12 @@ const
   wsCloseErrorTLS            = 1015;
 
   WEBSOCKET_KEY_LEN = 16;
+  WS_FRAME_MIN_SIZE = 2;
+
+  WS_PING_DISABLE = 0;
+  WS_PING_3MINUTES = 60 * 3;
+  WS_PING_4MINUTES = 60 * 4;
+  WS_PING_5MINUTES = 60 * 5;
 
 implementation
 

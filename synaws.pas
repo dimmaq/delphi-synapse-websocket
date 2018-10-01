@@ -15,7 +15,7 @@ type
   TSynaws = class
   protected
     FIsConnected: Boolean;
-    FConn: TTCPBlockSocket;
+    FSocket: TTCPBlockSocket;
     FConnectParam: IConnectParam;
     FUpgrader: TWebSocketUpgrade;
     FCookies: ICookieManager;
@@ -25,6 +25,7 @@ type
     constructor Create(const AConnectParam: IConnectParam);
     destructor Destroy; override;
     //---
+    procedure Disconnect;
     function Connect(const AUrl: AnsiString): Boolean;
     function Send(const A: RawByteString; const ACode: TWsOpcode = wsCodeText): Boolean;
     function SendText(const S: string): Boolean;
@@ -32,7 +33,7 @@ type
     function Recv(var AData: AnsiString; var ACode: TWsOpcode): Boolean;
     //---
     property IsConnected: Boolean read FIsConnected;
-    property Conn: TTCPBlockSocket read FConn;
+    property Socket: TTCPBlockSocket read FSocket;
     property Cookies: ICookieManager read FCookies write FCookies;
     property Url: AnsiString read FUrl write FUrl;
   end;
@@ -51,17 +52,22 @@ begin
 
   FConnectParam := AConnectParam;
 
-  FConn := TTCPBlockSocket.Create;
-  FConn.Owner := Self;
+  FSocket := TTCPBlockSocket.Create;
+  FSocket.Owner := Self;
 
-  FConn.NagleMode := False; // nodelay switch on
+  FSocket.NagleMode := False; // nodelay switch on
 end;
 
 destructor TSynaws.Destroy;
 begin
   FUpgrader.Free;
-  FConn.Free;
+  FSocket.Free;
   inherited Destroy;
+end;
+
+procedure TSynaws.Disconnect;
+begin
+  FSocket.CloseSocket;
 end;
 
 function TSynaws.Connect(const AUrl: AnsiString): Boolean;
@@ -88,50 +94,50 @@ begin
     FUpgrader := TWebSocketUpgrade.CreateClient(FUrl, True);
   FUpgrader.Cookies := lcookies;
 
-  FConn.ConnectionTimeout := FConnectParam.ConnectTimeout;
-  FConn.SetTimeout(FConnectParam.RecvTimeout);
+  FSocket.ConnectionTimeout := FConnectParam.ConnectTimeout;
+  FSocket.SetTimeout(FConnectParam.RecvTimeout);
 
-  FConn.SSL.SSLType := LT_all;
-  FConn.RaiseExcept := True;
+  FSocket.SSL.SSLType := LT_all;
+  FSocket.RaiseExcept := True;
 
   lproxy := ansiString(FConnectParam.SocksProxy);
   if lproxy <> '' then
   begin
-    FConn.SocksType := ST_Socks4;
-    FConn.SocksIP := AddrGetHost(lproxy);
-    FConn.SocksPort := AddrGetPort(lproxy, PROXY_PORT_DEFAULT);
-    FConn.SocksResolver := False;
+    FSocket.SocksType := ST_Socks4;
+    FSocket.SocksIP := AddrGetHost(lproxy);
+    FSocket.SocksPort := AddrGetPort(lproxy, PROXY_PORT_DEFAULT);
+    FSocket.SocksResolver := False;
   end;
 
   // Connect socket
-  FConn.CloseSocket;
-  FConn.Bind(FConnectParam.BindAddrA, cAnyPort);
-  if FConn.LastError <> 0 then
+  FSocket.CloseSocket;
+  FSocket.Bind(FConnectParam.BindAddrA, cAnyPort);
+  if FSocket.LastError <> 0 then
     Exit(False);
 
-  FConn.Connect(FUpgrader.Host, FUpgrader.Port);
-  if FConn.LastError <> 0 then
+  FSocket.Connect(FUpgrader.Host, FUpgrader.Port);
+  if FSocket.LastError <> 0 then
     Exit(False);
 
   // TLS?
   if Pos('wss://', FUrl) = 1 then
   begin
-    if FConn.SSL.SNIHost = '' then
-      FConn.SSL.SNIHost := FUpgrader.Host;
-    FConn.SSLDoConnect;
-    FConn.SSL.SNIHost := ''; //don't need it anymore and don't wan't to reuse it in next connection
-    if FConn.LastError <> 0 then
+    if FSocket.SSL.SNIHost = '' then
+      FSocket.SSL.SNIHost := FUpgrader.Host;
+    FSocket.SSLDoConnect;
+    FSocket.SSL.SNIHost := ''; //don't need it anymore and don't wan't to reuse it in next connection
+    if FSocket.LastError <> 0 then
       Exit(False);
   end;
 
   // Sent Request
-  FConn.SendString(FUpgrader.Headers);
-  if FConn.LastError <> 0 then
+  FSocket.SendString(FUpgrader.Headers);
+  if FSocket.LastError <> 0 then
     Exit(False);
 
   // read response headers
-  lresp_headers := FConn.RecvTerminated(FConnectParam.RecvTimeout, CRLF + CRLF);
-  if FConn.LastError <> 0 then
+  lresp_headers := FSocket.RecvTerminated(FConnectParam.RecvTimeout, CRLF + CRLF);
+  if FSocket.LastError <> 0 then
     Exit(False);
 
   if not FUpgrader.ClientConfirm(lresp_headers) then
@@ -148,8 +154,8 @@ function TSynaws.Send(const A: RawByteString; const ACode: TWsOpcode): Boolean;
 var z: RawByteString;
 begin
   z := FUpgrader.SendData(A, ACode);
-  FConn.SendString(z);
-  Result := FConn.LastError = 0
+  FSocket.SendString(z);
+  Result := FSocket.LastError = 0
 end;
 
 function TSynaws.SendText(const S: string): Boolean;
@@ -162,7 +168,7 @@ end;
 function TSynaws.WaitData(const ATimeout: Integer): Boolean;
 begin
   // wait data
-  Result := FConn.CanRead(ATimeout);
+  Result := FSocket.CanRead(ATimeout);
   if Result then
   begin
 {    if FConn.WaitingData() = 0 then
@@ -175,8 +181,8 @@ var z: AnsiString;
 begin
   AData := '';
   ACode := wsNoFrame;
-  z := FConn.RecvPacket(FConnectParam.RecvTimeout);
-  if FConn.LastError <> 0 then
+  z := FSocket.RecvPacket(FConnectParam.RecvTimeout);
+  if FSocket.LastError <> 0 then
     Exit(False);
 
   FReadBuffer := FReadBuffer + z;

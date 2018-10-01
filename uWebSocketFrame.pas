@@ -234,7 +234,7 @@ begin
   l := Length(ABuffer);
 
   // < header
-  if l < 2 then
+  if l < WS_FRAME_MIN_SIZE then
     Exit;
 
   // base header

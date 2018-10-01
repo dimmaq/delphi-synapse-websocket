@@ -21,7 +21,9 @@ const
 function TestUpgrader(const ws: TWebSocketUpgrade;
   S: RawByteString; const ALog: ILoggerInterface): Boolean;
 var
-  Z, b: RawByteString;
+  Z
+  //, b
+  : RawByteString;
   fr: TWebSocketFrame;
 begin
 {
@@ -36,10 +38,12 @@ begin
   Z := S;
   while S <> '' do
   begin
-    //fr.DecodedData := ws.ReadData(S, fr.Opcode);
-    //if ws.IsIncompleteFragmentsExists then
-    //  Continue;
-    //if fr.IsValidOpcode  then
+    fr.DecodedData := ws.ReadData(S, fr.Opcode);
+    if fr.IsValidOpcode then
+    begin
+      ALog.Info('%d %s', [fr.Opcode, fr.DecodedData])
+    end
+    (*
     if ws.ReadRawFrame(S, fr) then
     begin
       if ws.IsIncompleteFragmentsExists then
@@ -60,12 +64,13 @@ begin
         Exit;
       end;
       Delete(Z, 1, Length(b))
-    end
+    end     *)
     else
     begin
       ALog.Error('read frame');
       Exit;
     end;
+
   end;
   Result := True;
 end;

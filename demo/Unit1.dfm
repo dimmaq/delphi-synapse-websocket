@@ -72,11 +72,11 @@ object Form1: TForm1
       OnClick = btn1Click
     end
     object btnSendPing: TButton
-      Left = 384
+      Left = 288
       Top = 48
       Width = 75
       Height = 25
-      Caption = 'btnSendPing'
+      Caption = 'Ping'
       TabOrder = 3
       OnClick = btnSendPingClick
     end
@@ -88,6 +88,15 @@ object Form1: TForm1
       Caption = 'Test dump'
       TabOrder = 4
       OnClick = btn2Click
+    end
+    object btnSendClose: TButton
+      Left = 384
+      Top = 48
+      Width = 75
+      Height = 25
+      Caption = 'Close'
+      TabOrder = 5
+      OnClick = btnSendCloseClick
     end
   end
 end

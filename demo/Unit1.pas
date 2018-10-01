@@ -18,6 +18,7 @@ type
     btn1: TButton;
     btnSendPing: TButton;
     btn2: TButton;
+    btnSendClose: TButton;
     procedure btnConnectClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -25,6 +26,7 @@ type
     procedure btnSendPingClick(Sender: TObject);
     procedure btn1Click(Sender: TObject);
     procedure btn2Click(Sender: TObject);
+    procedure btnSendCloseClick(Sender: TObject);
   private
     FThread: TWorkThreadWebSocket;
     FParams: IConnectParam;
@@ -74,6 +76,11 @@ begin
   FThread.DumpFlow := True;
 
   FThread.Start()
+end;
+
+procedure TForm1.btnSendCloseClick(Sender: TObject);
+begin
+  FThread.SendClose()
 end;
 
 procedure TForm1.btnSendPingClick(Sender: TObject);

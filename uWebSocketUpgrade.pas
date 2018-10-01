@@ -779,6 +779,10 @@ end;
 
 function TWebSocketUpgrade.ReadRawFrame(var ABuffer: RawByteString; var AFrame: TWebSocketFrame): Boolean;
 begin
+  Result := False;
+  if Length(ABuffer) < WS_FRAME_MIN_SIZE then
+    Exit;
+
   AFrame := TWebSocketFrame.CreateFromBuffer(ABuffer);
   Result := AFrame.IsValid;
   if not Result then
@@ -840,7 +844,10 @@ begin
   AWsCode := wsNoFrame;
   Result := '';
 
-  if ReadRawFrame(ABuffer, frame) then
+  if Length(ABuffer) < WS_FRAME_MIN_SIZE then
+    Exit;
+
+  while ReadRawFrame(ABuffer, frame) do
   begin
     if not IsIncompleteFragmentsExists then
     begin
@@ -854,6 +861,7 @@ begin
       begin
         AWsCode := frame.Opcode;
         Result := frame.DecodedData;
+        Exit;
       end;
       if AWsCode = wsCodeText then
         SetCodePage(Result, CP_UTF8, False)
