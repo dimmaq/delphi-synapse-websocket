@@ -1,2 +1,9 @@
 # delphi-synapse-websocket
-Delphi Websocket library/ Based Synapse and WebSocketUpgrage
+
+Delphi Websocket
+
+Based on WebSocketUpgrage
+
+require 
+github.com/dimmaq/delphi-zlib
+github.com/dimmaq/delphi-synapse

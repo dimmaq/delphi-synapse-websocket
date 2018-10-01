@@ -24,14 +24,35 @@ var
   Z, b: RawByteString;
   fr: TWebSocketFrame;
 begin
+{
+  if ws.IsPerMessageDeflate then
+  begin
+    alog.Error('PerMessageDeflate not support');
+    Exit(True)
+  end; }
+
+
   Result := False;
   Z := S;
   while S <> '' do
   begin
-    if ws.ReadDataFrame(S, fr) then
+    //fr.DecodedData := ws.ReadData(S, fr.Opcode);
+    //if ws.IsIncompleteFragmentsExists then
+    //  Continue;
+    //if fr.IsValidOpcode  then
+    if ws.ReadRawFrame(S, fr) then
     begin
-     // ALog.Info('%d %d', [fr.Opcode, fr.DecodedData]);
-//      ALog.Info('%d %d %s', [fr.Opcode, fr.PayloadLen, fr.DecodedData]);
+      if ws.IsIncompleteFragmentsExists then
+      begin
+        ALog.Info('   %d %d %s', [fr.Opcode, fr.PayloadLen, fr.DecodedData]);
+      end
+      else
+      begin
+        ALog.Info('%d %d %s', [fr.Opcode, fr.PayloadLen, fr.DecodedData]);
+        if ws.Fragments.IsComplete then
+          ALog.Info('%d %s', [ws.Fragments.Opcode, ws.Fragments.DecodedData])        
+      end;
+    //  ALog.Info('%d %d', [fr.Opcode, fr.PayloadLen]);
       b := fr.ToBuffer();
       if b <> Copy(Z, 1, Length(Z) - Length(S)) then
       begin

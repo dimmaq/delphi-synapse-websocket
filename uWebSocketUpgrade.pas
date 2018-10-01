@@ -79,6 +79,8 @@ type
     FWasCreated: Boolean;
     FWasHandshake: Boolean;
     FIsServer: Boolean;
+    FFragments: TWebSocketFrame;
+    //
     FIsPerMessageDeflate: boolean;
     FCookie: RawByteString;
     FVersion: Integer;
@@ -100,7 +102,8 @@ type
     FOutZBuffer: TZCompressionBuffer;
     //---
     function ZCompress(const ARawData: RawByteString): RawByteString;
-    function ZDecompress(const ACompData: RawByteString): RawByteString;
+    function ZDecompress(const ACompData: RawByteString;
+      const AIsFinal: Boolean): RawByteString;
     //---
     function GetHeaders: RawByteString;
     function GetServerResponseHeaders: RawByteString;
@@ -124,7 +127,7 @@ type
     function ClientConfirm(const AServerResponseHeaders: RawByteString;
       const AIgnoreKey: Boolean = False): Boolean;
     //if websocket, send data packets here to be decoded
-    function IsIncomplateFrameExist: Boolean;
+    function IsIncompleteFragmentsExists: Boolean;
     function ReadData(var ABuffer: RawByteString; var AWsCode: TWsOpcode): RawByteString;
     function ReadRawFrame(var ABuffer: RawByteString; var AFrame: TWebSocketFrame): Boolean;
     //if websocket, send text to this method to send encoded packet
@@ -137,6 +140,8 @@ type
     property Headers: RawByteString read GetHeaders;
     property Host: RawByteString read FHost;
     property Port: RawByteString read FPort;
+    property IsPerMessageDeflate: Boolean read FIsPerMessageDeflate;
+    property Fragments: TWebSocketFrame read FFragments;
   end;
 
 implementation
@@ -149,7 +154,13 @@ uses
   synautil, synacode;
 
 const
-  DEFLATE_TAIL: RawByteString = RawByteString(''#$00#$00#$FF#$FF);
+	// Add four bytes as specified in RFC
+//	"\x00\x00\xff\xff" +
+		// Add final block to squelch unexpected EOF error from flate reader.
+//		"\x01\x00\x00\xff\xff"
+
+  DEFLATE_TAIL: RawByteString = RawByteString(#$00#$00#$FF#$FF);
+  INFLATE_TAIL: RawByteString = RawByteString(#$00#$00#$FF#$FF#$01#$00#$00#$FF#$FF);
   DEFLATE_TAIL_LEN = 4;
 
 // helpers
@@ -235,30 +246,6 @@ end;
 
 {$ENDREGION}
 
-{TZlibBuffer}
-{$REGION 'TZlibBuffer'}
-constructor TZlibBuffer.Create(bufSize: Integer);
-begin
-  SetBufferSize(bufSize);
-end;
-
-{ no need
-destructor TZlibBuffer.Destroy;
-begin
-  SetBufferSize(0); no need
-  inherited Destroy;
-end;
-}
-
-procedure TZlibBuffer.SetBufferSize(bufSize: Integer);
-begin
-  bufferSize := bufSize;
-  SetLength(readBuffer,bufferSize);
-  SetLength(writeBuffer,bufferSize);
-end;
-{$ENDREGION}
-
-
 {TWebSocketUpgrade}
 {$REGION 'TWebSocketUpgrade'}
 constructor TWebSocketUpgrade.Create;
@@ -286,6 +273,7 @@ begin
   // waiting zlib update >1.2.11
   // https://github.com/madler/zlib/issues/250
   //
+  {
   if Assigned(A) then
   begin
     A.Flush(zfFinish);
@@ -302,8 +290,8 @@ begin
         raise
       end;
     end;
-  end;
-
+  end;   }
+  A.Free;
 end;
 
 destructor TWebSocketUpgrade.Destroy;
@@ -328,6 +316,8 @@ var
   s: AnsiString;
   l: Integer;
 begin
+  //raise ENotSupportedException.Create('not support');
+
   if not Assigned(FOutZBuffer) then
     FOutZBuffer := TZCompressionBuffer.Create(zcLevel8, -1 * FOutCompWindowBits, 9, zsDefault);
   //---
@@ -339,7 +329,8 @@ begin
   //
   if FOutCompNoContext then
   begin
-    FOutZBuffer.Clear();
+    //FOutZBuffer.Clear();
+    FOutZBuffer.Flush(zfFinish);
   end;
   //
   // 0000FFFF
@@ -352,30 +343,42 @@ begin
   end;
   //
   Result := s;
+  SetCodePage(Result, $FFFF, False);
 end;
 
-function TWebSocketUpgrade.ZDecompress(const ACompData: RawByteString): RawByteString;
+function TWebSocketUpgrade.ZDecompress(const ACompData: RawByteString;
+  const AIsFinal: Boolean): RawByteString;
 var
   s: AnsiString;
 begin
+//  raise ENotSupportedException.Create('not support');
+//  Result := '[compressed]';
+
   if not Assigned(FInZBuffer) then
     FInZBuffer := TZDecompressionBuffer.Create(-1 * FInCompWindowBits);
   //---
   FInZBuffer.Write(ACompData);
-  FInZBuffer.Write(DEFLATE_TAIL);
-  //  FOutZBuffer.Flush(zfSyncFlush); // zfFullFlush ??
+  if AIsFinal then
+  begin
+    FInZBuffer.Write(DEFLATE_TAIL);
+  end;
   //
   s := '';
   FInZBuffer.Read(s);
   //
   if FInCompNoContext then
-    FInZBuffer.Clear();
+  begin
+   // FInZBuffer.Clear();
+   // FInZBuffer.Flush(zfFinish);
+  end;
   //
-  Result := s
+  Result := s;
+  SetCodePage(Result, $FFFF, False);
 end;
 
 procedure TWebSocketUpgrade.Clear;
 begin
+  FFragments.Clear;
   FWasCreated := False;
   FWasHandshake := False;  
   FIsServer := False;
@@ -769,38 +772,93 @@ begin
   Result := True;  
 end;
 
+function TWebSocketUpgrade.IsIncompleteFragmentsExists: Boolean;
+begin
+  Result := FFragments.IsValidOpcode and FFragments.IsIncomplete
+end;
+
 function TWebSocketUpgrade.ReadRawFrame(var ABuffer: RawByteString; var AFrame: TWebSocketFrame): Boolean;
 begin
   AFrame := TWebSocketFrame.CreateFromBuffer(ABuffer);
   Result := AFrame.IsValid;
-  if Result then
+  if not Result then
+    Exit;
+  // clear pred fragment
+  if not AFrame.FIN and (AFrame.Opcode <> wsCodeContinuation) and FFragments.IsValidOpcode then
   begin
-    // deflate
-    //  https://tools.ietf.org/html/draft-ietf-hybi-permessage-compression-17#section-8.2.3
-    //  !!! Note that the RSV1 bit is set only on the first frame.
-    if AFrame.RSV1 and FIsPerMessageDeflate and (Length(AFrame.PayloadData) > 0) then
+    FFragments.Clear;
+  end;
+  //---
+  // deflate
+  //  https://tools.ietf.org/html/draft-ietf-hybi-permessage-compression-17#section-8.2.3
+  //  Note that the RSV1 bit is set only on the first frame.
+  if FIsPerMessageDeflate and (Length(AFrame.PayloadData) > 0) then
+  begin
+    if AFrame.IsDeflated or (IsIncompleteFragmentsExists() and FFragments.IsDeflated) then
     begin
-      AFrame.DecodedData := ZDecompress(AFrame.PayloadData);
+      FFragments.SetAsDeflated();
+      AFrame.DecodedData := ZDecompress(AFrame.PayloadData, AFrame.FIN)
     end;
-
-    if AFrame.Opcode = wsCodeText then
-      SetCodePage(AFrame.DecodedData, CP_UTF8, False)
+  end;
+  //
+  //  The "Payload data" is text data encoded as UTF-8. https://tools.ietf.org/html/rfc6455#section-5.6
+  if (AFrame.Opcode = wsCodeText) then
+    SetCodePage(AFrame.DecodedData, CP_UTF8, False);
+  //
+  // final fragment
+  if AFrame.FIN then
+  begin
+    if IsIncompleteFragmentsExists() then
+    begin
+      FFragments.DecodedData := FFragments.DecodedData + AFrame.DecodedData;
+      FFragments.SetComplete();
+    end
     else
-      SetCodePage(AFrame.DecodedData, $FFFF, False);
+    begin
+      // clear pred fragment
+      if FFragments.IsValidOpcode then
+        FFragments.Clear();
+    end;
+  end
+  else // first fragment
+  begin
+    if not FFragments.IsValidOpcode then
+    begin
+      FFragments.Opcode := AFrame.Opcode;
+      FFragments.SetComplete(False);
+      if FFragments.Opcode = wsCodeText then
+        SetCodePage(FFragments.DecodedData, CP_UTF8, False)
+    end;
+    FFragments.DecodedData := FFragments.DecodedData + AFrame.DecodedData;
   end;
 end;
 
 function TWebSocketUpgrade.ReadData(var ABuffer: RawByteString; var AWsCode: TWsOpcode): RawByteString;
-var frame: TWebSocketFrame;
+var
+  frame: TWebSocketFrame;
 begin
-  AWsCode := wsCodeNoFrame;
+  AWsCode := wsNoFrame;
   Result := '';
 
-  if ReadDataFrame(ABuffer, frame) then
+  if ReadRawFrame(ABuffer, frame) then
   begin
-    AWsCode := frame.Opcode;
-    Result := frame.DecodedData;
-  end
+    if not IsIncompleteFragmentsExists then
+    begin
+      if FFragments.IsValidOpcode then
+      begin
+        AWsCode := FFragments.Opcode;
+        Result := FFragments.DecodedData;
+        FFragments.Clear();
+      end
+      else
+      begin
+        AWsCode := frame.Opcode;
+        Result := frame.DecodedData;
+      end;
+      if AWsCode = wsCodeText then
+        SetCodePage(Result, CP_UTF8, False)
+    end;
+  end;
 end;
 
 
@@ -809,29 +867,21 @@ function TWebSocketUpgrade.SendData(const AData: RawByteString; const AWsCode: T
 var
   payload: RawByteString;
   frame: TWebSocketFrame;
-  rsv1: Boolean;
+  deflated: Boolean;
 begin
-  rsv1 := False;
+  deflated := False;
   //
   if ATryDeflate and FIsPerMessageDeflate and (Length(AData) > 0) then
   begin
     payload := ZCompress(AData);
-    //http://stackoverflow.com/questions/22169036/websocket-permessage-deflate-in-chrome-with-no-context-takeover
-    rsv1 := True;
-  (*
-    //http://stackoverflow.com/questions/22169036/websocket-permessage-deflate-in-chrome-with-no-context-takeover
-    rsv1 := True;
-    //aData := ZlibCompressString(aData,zcLevel8,-1*wsConn.CompWindowBits,9{memLevel},zsDefault) + #0 {#0=BFINAL, forces no-context};
-    payload := ZlibStreamCompressString(FOutFZStream, payload, FZBuffer);
-    if FOutCompNoContext then
-      ZCompressCheck(ZDeflateReset(FOutFZStream));   *)
-
+    deflated := True;
   end;
   //
   frame := TWebSocketFrame.Create(AWsCode, payload, AData, not FIsServer);
 //  https://tools.ietf.org/html/draft-ietf-hybi-permessage-compression-17#section-8.2.3
 //   Note that the RSV1 bit is set only on the first frame.
-  frame.RSV1 := rsv1;
+  if deflated then
+    frame.SetAsDeflated();
   //
   Result := frame.ToBuffer()
 end;

@@ -174,7 +174,7 @@ function TSynaws.Recv(var AData: AnsiString; var ACode: TWsOpcode): Boolean;
 var z: AnsiString;
 begin
   AData := '';
-  ACode := -1;
+  ACode := wsNoFrame;
   z := FConn.RecvPacket(FConnectParam.RecvTimeout);
   if FConn.LastError <> 0 then
     Exit(False);

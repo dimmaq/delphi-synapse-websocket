@@ -105,8 +105,9 @@ begin
 
   FParams := TSimpleConnectParam.Create;
   FParams.SocksProxyA := '127.0.0.1:1088';
-  re := TReLog3.Create(redtlog, 'log.txt');;
-  re.TrimOut := True;
+  re := TReLog3.Create(redtlog, gDirLog + 'log.txt');;
+//  re.TrimOut := True;
+  re.LogHistSize := 100000;
   FLog := re;
   FCookies := CreateCookieManager('');
   FCookies.AddRaw('pubsub-edge.twitch.tv', COOKIES);

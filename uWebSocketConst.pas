@@ -6,7 +6,9 @@ type
   TWsOpcode = Int8;
 
 const
-  wsCodeNoFrame      = -1;
+  wsNoFrame = -1;
+
+const
   {:Constants section defining what kind of data are sent from one pont to another}
   {:Continuation frame }
   wsCodeContinuation = $0;
