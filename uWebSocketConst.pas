@@ -4,9 +4,12 @@ interface
 
 type
   TWsOpcode = Int8;
+  TWsCloseCode = UInt16;
 
 const
-  wsCodeNoFrame      = -1;
+  wsNoFrame = -1;
+
+const
   {:Constants section defining what kind of data are sent from one pont to another}
   {:Continuation frame }
   wsCodeContinuation = $0;
@@ -50,6 +53,12 @@ const
   wsCloseErrorTLS            = 1015;
 
   WEBSOCKET_KEY_LEN = 16;
+  WS_FRAME_MIN_SIZE = 2;
+
+  WS_PING_DISABLE = 0;
+  WS_PING_3MINUTES = 60 * 3;
+  WS_PING_4MINUTES = 60 * 4;
+  WS_PING_5MINUTES = 60 * 5;
 
 implementation
 

@@ -1,5 +1,9 @@
 unit uWebSocketFrame;
 
+{
+  WEbSocket RFC https://tools.ietf.org/html/rfc6455
+}
+
 interface
 
 uses
@@ -10,7 +14,7 @@ uses
 type
   TWebSocketFrame = record
   private
-    FIsComplate: Boolean;
+    FIsComplete: Boolean;
   public
     FIN: Boolean;
     RSV1: Boolean;
@@ -28,10 +32,15 @@ type
     constructor CreateFromBuffer(var ABuffer: RawByteString);
     procedure LoadFromBuffer(var ABuffer: RawByteString);
     procedure Clear;
+    procedure Assign(const A: TWebSocketFrame);
     function IsValid: Boolean;
-    function IsIncomplate: Boolean;
+    function IsValidOpcode: Boolean;
+    function IsIncomplete: Boolean;
+    function IsDeflated: Boolean;
+    procedure SetAsDeflated;
     function ToBuffer: RawByteString;
-    property IsComplate: Boolean read FIsComplate;
+    procedure SetComplete(const A: Boolean = True);
+    property IsComplete: Boolean read FIsComplete;
   end;
 
 
@@ -123,15 +132,32 @@ end;
 
 { TWebSocketFrame }
 
+procedure TWebSocketFrame.Assign(const A: TWebSocketFrame);
+begin
+  // Self := A; ???
+
+  FIsComplete := A.FIsComplete;
+  FIN := A.FIN;
+  RSV1 := A.RSV1;
+  RSV2 := A.RSV2;
+  RSV3 := A.RSV3;
+  Opcode := A.Opcode;
+  Mask := A.Mask;
+  PayloadLen := A.PayloadLen;
+  MaskingKey := A.MaskingKey;
+  PayloadData := A.PayloadData;
+  DecodedData := A.DecodedData;
+end;
+
 procedure TWebSocketFrame.Clear;
 begin
-  FIsComplate := False;
+  FIsComplete := False;
 
   FIN := True;
   RSV1 := False;
   RSV2 := False;
   RSV3 := False;
-  Opcode := -1;
+  Opcode := wsNoFrame;
   Mask := False;
   PayloadLen := 0;
   MaskingKey := 0;
@@ -142,7 +168,7 @@ end;
 constructor TWebSocketFrame.Create(const ACode: TWsOpcode;
   const APayload, ADecoded: RawByteString; const AMask, AFIN: Boolean);
 begin
-  FIsComplate := True;
+  FIsComplete := True;
 
   FIN := AFIN;
   RSV1 := False;
@@ -161,14 +187,24 @@ begin
   LoadFromBuffer(ABuffer);
 end;
 
-function TWebSocketFrame.IsIncomplate: Boolean;
+function TWebSocketFrame.IsDeflated: Boolean;
 begin
-  Result := not FIsComplate
+  Result := RSV1
+end;
+
+function TWebSocketFrame.IsIncomplete: Boolean;
+begin
+  Result := (not FIsComplete)
 end;
 
 function TWebSocketFrame.IsValid: Boolean;
 begin
-  Result := FIsComplate and ($0 <= Opcode) and (Opcode <= $F) and (PayloadLen = Length(PayloadData))
+  Result := FIsComplete and IsValidOpcode() and (PayloadLen = Length(PayloadData))
+end;
+
+function TWebSocketFrame.IsValidOpcode: Boolean;
+begin
+  Result := ($0 <= Opcode) and (Opcode <= $F)
 end;
 
 {     0                   1                   2                   3
@@ -198,7 +234,7 @@ begin
   l := Length(ABuffer);
 
   // < header
-  if l < 2 then
+  if l < WS_FRAME_MIN_SIZE then
     Exit;
 
   // base header
@@ -273,9 +309,20 @@ begin
   //
   DecodedData := PayloadData;
   //
-  FIsComplate := True;
+  FIsComplete := True;
 end;
 
+
+procedure TWebSocketFrame.SetAsDeflated;
+begin
+  RSV1 := True
+end;
+
+procedure TWebSocketFrame.SetComplete(const A: Boolean);
+begin
+  FIsComplete := A;
+  FIN := A;
+end;
 
 {     0                   1                   2                   3
       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
