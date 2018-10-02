@@ -3,7 +3,7 @@ unit synaws;
 interface
 
 uses
-  SysUtils, Classes, AnsiStrings,
+  SysUtils, Classes, AnsiStrings, SyncObjs,
   //
   blcksock, synautil, synaip, synacode, synsock, ssl_openssl,
   //
@@ -21,6 +21,7 @@ type
     FCookies: ICookieManager;
     FUrl: AnsiString;
     FReadBuffer: RawByteString;
+    FSendLock: TCriticalSection;
   public
     constructor Create(const AConnectParam: IConnectParam);
     destructor Destroy; override;
@@ -50,6 +51,8 @@ constructor TSynaws.Create(const AConnectParam: IConnectParam);
 begin
   inherited Create;
 
+  FSendLock := TCriticalSection.Create;
+
   FConnectParam := AConnectParam;
 
   FSocket := TTCPBlockSocket.Create;
@@ -60,8 +63,9 @@ end;
 
 destructor TSynaws.Destroy;
 begin
-  FUpgrader.Free;
-  FSocket.Free;
+  FreeAndNil(FSendLock);
+  FreeAndNil(FUpgrader);
+  FreeAndNil(FSocket);
   inherited Destroy;
 end;
 
@@ -154,7 +158,12 @@ function TSynaws.Send(const A: RawByteString; const ACode: TWsOpcode): Boolean;
 var z: RawByteString;
 begin
   z := FUpgrader.SendData(A, ACode);
-  FSocket.SendString(z);
+  FSendLock.Enter;
+  try
+    FSocket.SendString(z);
+  finally
+    FSendLock.Leave;
+  end;
   Result := FSocket.LastError = 0
 end;
 

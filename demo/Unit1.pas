@@ -80,7 +80,7 @@ end;
 
 procedure TForm1.btnSendCloseClick(Sender: TObject);
 begin
-  FThread.SendClose()
+  FThread.SendClose(1000 + random(16), UTF8Encode(Edit1.Text))
 end;
 
 procedure TForm1.btnSendPingClick(Sender: TObject);

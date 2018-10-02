@@ -244,6 +244,12 @@ begin
   end;
 end;
 
+
+function IsControlFrame(const A: TWsOpcode): Boolean;
+begin
+  Result := (A = wsCodeClose) or (A = wsCodePing) or (A = wsCodePong)
+end;
+
 {$ENDREGION}
 
 {TWebSocketUpgrade}
@@ -869,7 +875,6 @@ begin
   end;
 end;
 
-
 function TWebSocketUpgrade.SendData(const AData: RawByteString; const AWsCode: TWsOpcode;
   const ATryDeflate: boolean): RawByteString;
 var
@@ -878,8 +883,9 @@ var
   deflated: Boolean;
 begin
   deflated := False;
+  payload := AData;
   //
-  if ATryDeflate and FIsPerMessageDeflate and (Length(AData) > 0) then
+  if ATryDeflate and FIsPerMessageDeflate and (not IsControlFrame(AWsCode)) and (Length(AData) > 0) then
   begin
     payload := ZCompress(AData);
     deflated := True;

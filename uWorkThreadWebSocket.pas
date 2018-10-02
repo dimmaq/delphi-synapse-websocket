@@ -118,7 +118,7 @@ begin
       end;
       if FSocket.LastError <> 0 then
       begin
-        LogError('recv fail %d %s', [FSocket.LastError, FSocket.LastErrorDesc]);
+        LogError('recv fail %d "%s"', [FSocket.LastError, FSocket.LastErrorDesc]);
         Exit;
       end;
     end;
@@ -139,10 +139,10 @@ end;
 procedure TWorkThreadWebSocket.OnRecvClose(const ACloseCode: TWsCloseCode;
   const AReason: UTF8String);
 begin
-  LogInfo('recv close frame %d %s', [ACloseCode, AReason]);
+  LogInfo('recv close frame %d "%s"', [ACloseCode, AReason]);
   if not FIsClosing then
   begin
-    SendClose(ACloseCode, AReason);
+    SendClose(ACloseCode);
   end;
   Terminate;
 end;
@@ -244,13 +244,13 @@ begin
   Result := False;
   if FConn.SendText(S) then
   begin
-    LogInfo('> %d %s', [wsCodeText, S]);
+    LogInfo('> %d "%s"', [wsCodeText, S]);
     Result := True;
   end
   else
   begin
-    LogError('> %d %s', [wsCodeText, S]);
-    LogError('# %d %s', [FSocket.LastError, FSocket.LastErrorDesc])
+    LogError('> %d "%s"', [wsCodeText, S]);
+    LogError('# %d "%s"', [FSocket.LastError, FSocket.LastErrorDesc])
   end;
 end;
 
@@ -263,13 +263,13 @@ begin
     Exit;
   if FConn.Send(S, I) then
   begin
-    LogInfo('> %d %s', [I, S]);
+    LogInfo('> %d "%s"', [I, S]);
     Result := True
   end
   else
   begin
-    LogError('> %d %s', [I, S]);
-    LogError('# %d %s', [FSocket.LastError, FSocket.LastErrorDesc])
+    LogError('> %d "%s"', [I, S]);
+    LogError('# %d "%s"', [FSocket.LastError, FSocket.LastErrorDesc])
   end;
 end;
 
@@ -278,7 +278,7 @@ procedure TWorkThreadWebSocket.SendClose(const ACode: TWsCloseCode;
 var z: RawByteString;
 begin
   FIsClosing := True;
-  LogInfo('closing %d %s', [ACode, AReason]);
+  LogInfo('closing %d "%s"', [ACode, AReason]);
   z := #32#32 + UTF8Encode(AReason);
   PWord(Pointer(z))^ := Swap(ACode);
   Send(z, wsCodeClose);
