@@ -34,7 +34,7 @@ type
     function GetUrl: AnsiString;
     procedure SetUrl(const Value: AnsiString);
   protected
-    procedure OnConnect; virtual; abstract;
+    procedure OnConnect; virtual;
     procedure OnSendPing(const AData: RawByteString; const ACode: TWsOpcode); virtual;
     procedure OnRecvPing(const AData: RawByteString); virtual;
     procedure OnRecvPong(const AData: RawByteString); virtual;
@@ -122,6 +122,8 @@ begin
         Exit;
       if FConn.WaitData(ConnectParam.RecvTimeout) then
       begin
+        if Aborted then
+          Exit;
         while FConn.Recv(ldata, lcode) and (not Aborted) do
         begin
           LogInfo('< %d %s', [lcode, ldata]);
@@ -158,6 +160,11 @@ end;
 function TWorkThreadWebSocket.GetUrl: AnsiString;
 begin
   Result := FConn.Url
+end;
+
+procedure TWorkThreadWebSocket.OnConnect;
+begin
+  LogDebug('onConnect event');
 end;
 
 procedure TWorkThreadWebSocket.OnRecvBinary(const ABin: RawByteString);
