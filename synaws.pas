@@ -1,4 +1,4 @@
-unit synaws;
+﻿unit synaws;
 
 interface
 
@@ -13,6 +13,10 @@ uses
 
 type
   TSynaws = class
+  private
+    function RecvPacketToBuffer(const ATimeout: Integer = 0): Boolean;
+    function ReadFrameFromBuffer(var AData: RawByteString;
+      var AOpcode: TWsOpcode): Boolean;
   protected
     FIsConnected: Boolean;
     FSocket: TTCPBlockSocket;
@@ -185,18 +189,55 @@ begin
   end;
 end;
 
+function TSynaws.ReadFrameFromBuffer(var AData: RawByteString;
+  var AOpcode: TWsOpcode): Boolean;
+begin
+  AData := FUpgrader.ReadData(FReadBuffer, AOpcode);
+  Result := AOpcode <> wsNoFrame
+end;
+
 function TSynaws.Recv(var AData: RawByteString; var ACode: TWsOpcode): Boolean;
-var z: AnsiString;
+
+  function IsIncompleteFrameExists: Boolean;
+  begin
+    Result := FUpgrader.IsIncompleteFragmentsExists or (FReadBuffer <> '')
+  end;
+
 begin
   AData := '';
   ACode := wsNoFrame;
-  z := FSocket.RecvPacket(FConnectParam.RecvTimeout);
-  if FSocket.LastError <> 0 then
-    Exit(False);
+  //
+  // there is frame in buffer
+  if FReadBuffer <> '' then
+  begin
+    if ReadFrameFromBuffer(AData, ACode) then
+    begin
+      Result := IsIncompleteFrameExists();
+      Exit;
+    end;
+  end;
+  //
+  if RecvPacketToBuffer(FConnectParam.RecvTimeout) then
+  begin
+    if ReadFrameFromBuffer(AData, ACode) then
+    begin
+      Result := IsIncompleteFrameExists();
+      Exit;
+    end;
+  end;
+  Result := False
+end;
 
+function TSynaws.RecvPacketToBuffer(const ATimeout: Integer): Boolean;
+var z: RawByteString;
+begin
+  z := FSocket.RecvPacket(ATimeout);
+//  SetCodePage(z, #$FFFF, False);
+//  SetCodePage(FReadBuffer, #$FFFF, False);
   FReadBuffer := FReadBuffer + z;
-  AData := FUpgrader.ReadData(FReadBuffer, ACode);
-  Result := ACode >= 0;
+  SetCodePage(FReadBuffer, $FFFF, False);
+  //
+  Result := FSocket.LastError <> 0;
 end;
 
 end.
