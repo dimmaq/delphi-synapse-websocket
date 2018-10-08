@@ -3,7 +3,7 @@ unit uWorkThreadWebSocket;
 interface
 
 uses
-  SysUtils, DateUtils,
+  SysUtils, DateUtils, Classes,
   //
   blcksock,
   //
@@ -22,6 +22,8 @@ type
     FIsClosing: Boolean;
     FConn: TSynaws;
     FSocket: TTCPBlockSocket;
+    //
+    FOnConnectedEvent: TNotifyEvent;
     //
     procedure ProcessCloseFrame(const AData: RawByteString);
     procedure ProcessRecvData(const ACode: TWsOpcode; const AData: RawByteString);
@@ -54,12 +56,16 @@ type
       const AReason: UTF8String = '');
     function Send(const S: RawByteString; I: TWsOpcode): Boolean;
     function SendText(const S: string): Boolean; overload;
-
+    procedure SendPing;
+    //
+    property OnConnectedEvent: TNotifyEvent read FOnConnectedEvent write FOnConnectedEvent;
+    //
     property ConnectParam: IConnectParam read GetConnectParam write SetConnectParam;
     property Cookies: ICookieManager read GetCookieManager write SetCookieManager;
     property Url: AnsiString read GetUrl write SetUrl;
     property AutoPing: Integer read FAutoPing write FAutoPing;
     property AutoPong: Boolean read FAutoPong write FAutoPong;
+
   end;
 
 implementation
@@ -113,7 +119,7 @@ begin
       LogError('connect fail %d %s', [FSocket.LastError, FSocket.LastErrorDesc]);
       Exit;
     end;
-    LogInfo('conected, wait data');
+    LogDebug('conected, wait data');
     OnConnect();
     while not Aborted do
     begin
@@ -126,7 +132,7 @@ begin
           Exit;
         while FConn.Recv(ldata, lcode) and (not Aborted) do
         begin
-          LogInfo('< %d %s', [lcode, ldata]);
+          LogDebug('< %d %s', [lcode, ldata]);
           ProcessRecvData(lcode, ldata);
           if Aborted then
             Exit;
@@ -165,17 +171,21 @@ end;
 procedure TWorkThreadWebSocket.OnConnect;
 begin
   LogDebug('onConnect event');
+  if Assigned(FOnConnectedEvent) then
+  begin
+    FOnConnectedEvent(Self)
+  end;
 end;
 
 procedure TWorkThreadWebSocket.OnRecvBinary(const ABin: RawByteString);
 begin
-  LogInfo('recv binary frame %d', [Length(ABin)]);
+  LogDebug('recv binary frame %d', [Length(ABin)]);
 end;
 
 procedure TWorkThreadWebSocket.OnRecvClose(const ACloseCode: TWsCloseCode;
   const AReason: UTF8String);
 begin
-  LogInfo('recv close frame %d "%s"', [ACloseCode, AReason]);
+  LogDebug('recv close frame %d "%s"', [ACloseCode, AReason]);
   if not FIsClosing then
   begin
     SendClose(ACloseCode);
@@ -185,7 +195,7 @@ end;
 
 procedure TWorkThreadWebSocket.OnRecvText(const AText: UTF8String);
 begin
-  LogInfo('recv text frame %s', [AText]);
+  LogDebug('recv text frame %s', [AText]);
 end;
 
 procedure TWorkThreadWebSocket.ProcessCloseFrame(const AData: RawByteString);
@@ -238,7 +248,7 @@ end;
 
 procedure TWorkThreadWebSocket.OnRecvPing(const AData: RawByteString);
 begin
-  LogInfo('recv ping');
+  LogDebug('recv ping');
   if FAutoPong then
     Send(AData, wsCodePong)
 end;
@@ -246,14 +256,14 @@ end;
 procedure TWorkThreadWebSocket.OnRecvPong(const AData: RawByteString);
 begin
   FIsPongRecv := True;
-  LogInfo('recv pong');
+  LogDebug('recv pong');
 end;
 
 procedure TWorkThreadWebSocket.OnSendPing(const AData: RawByteString;
   const ACode: TWsOpcode);
 begin
   FIsPongRecv := False;
-  LogInfo('send ping');
+  LogDebug('send ping');
   Send(AData, ACode);
 end;
 
@@ -281,7 +291,7 @@ begin
   Result := False;
   if FConn.SendText(S) then
   begin
-    LogInfo('> %d "%s"', [wsCodeText, S]);
+    LogDebug('> %d "%s"', [wsCodeText, S]);
     Result := True;
   end
   else
@@ -300,7 +310,7 @@ begin
     Exit;
   if FConn.Send(S, I) then
   begin
-    LogInfo('> %d "%s"', [I, S]);
+    LogDebug('> %d "%s"', [I, S]);
     Result := True
   end
   else
@@ -315,12 +325,17 @@ procedure TWorkThreadWebSocket.SendClose(const ACode: TWsCloseCode;
 var z: RawByteString;
 begin
   FIsClosing := True;
-  LogInfo('closing %d "%s"', [ACode, AReason]);
+  LogDebug('closing %d "%s"', [ACode, AReason]);
   z := #32#32 + UTF8Encode(AReason);
   PWord(Pointer(z))^ := Swap(ACode);
   Send(z, wsCodeClose);
 end;
 
+
+procedure TWorkThreadWebSocket.SendPing;
+begin
+  OnSendPing('', wsCodePing);
+end;
 
 procedure TWorkThreadWebSocket.SetConnectParam(const Value: IConnectParam);
 begin

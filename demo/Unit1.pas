@@ -63,11 +63,12 @@ procedure TForm1.btnConnectClick(Sender: TObject);
 const
   URL1 = 'wss://pubsub-edge.twitch.tv/v1';
   URL2 = 'ws://127.0.0.1:8080/echo';
+  URL3 = 'wss://irc-ws.chat.twitch.tv/';
 begin
   if FThread <> nil then
     Exit;
 
-  FThread := TWorkThreadWebSocket.Create(URL2, FParams, FLog);
+  FThread := TWorkThreadWebSocket.Create(URL1, FParams, FLog);
   FThread.OnTerminate := ThreadTermnated;
 
   FThread.Cookies := FCookies;
@@ -111,13 +112,13 @@ begin
   ForceDirectories(gDirDump);
 
   FParams := TSimpleConnectParam.Create;
-  FParams.SocksProxyA := '127.0.0.1:1088';
+//  FParams.SocksProxyA := '127.0.0.1:1088';
   re := TReLog3.Create(redtlog, gDirLog + 'log.txt');;
 //  re.TrimOut := True;
   re.LogHistSize := 100000;
   FLog := re;
   FCookies := CreateCookieManager('');
-  FCookies.AddRaw('pubsub-edge.twitch.tv', COOKIES);
+//  FCookies.SetCookie('pubsub-edge.twitch.tv', COOKIES);
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
