@@ -43,7 +43,7 @@ type
     procedure OnRecvClose(const ACloseCode: TWsCloseCode; const AReason: UTF8String); virtual;
     procedure OnRecvBinary(const ABin: RawByteString); virtual;
     procedure OnRecvText(const AText: UTF8String); virtual;
-
+    //
     procedure SetLogger; override;
     procedure Execute; override;
     procedure TerminatedSet; override;
@@ -57,6 +57,8 @@ type
     function Send(const S: RawByteString; I: TWsOpcode): Boolean;
     function SendText(const S: string): Boolean; overload;
     procedure SendPing;
+    function Recv(var AData: RawByteString; var AOpcode: TWsOpcode): Boolean; overload;
+    function Recv(var AData: RawByteString): TWsOpcode; overload;
     //
     property OnConnectedEvent: TNotifyEvent read FOnConnectedEvent write FOnConnectedEvent;
     //
@@ -134,7 +136,7 @@ begin
         again := True;
         while again and (not Aborted) do
         begin
-          again := FConn.Recv(ldata, lcode);
+          again := Recv(ldata, lcode);
           if lcode <> wsNoFrame then
           begin
             LogDebug('< %d %s', [lcode, ldata]);
@@ -248,6 +250,17 @@ begin
     else
       LogError('recv unknow opcode ' + IntToStr(ACode));
   end;
+end;
+
+function TWorkThreadWebSocket.Recv(var AData: RawByteString): TWsOpcode;
+begin
+  Recv(AData, Result)
+end;
+
+function TWorkThreadWebSocket.Recv(var AData: RawByteString;
+  var AOpcode: TWsOpcode): Boolean;
+begin
+  Result := FConn.Recv(AData, AOpcode)
 end;
 
 procedure TWorkThreadWebSocket.OnRecvPing(const AData: RawByteString);

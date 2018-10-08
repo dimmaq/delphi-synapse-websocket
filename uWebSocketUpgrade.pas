@@ -71,6 +71,8 @@ uses
   //
   ZLibEx, ZLibExApi,
   //
+  uAnsiStringList,
+  //
   uWebSocketFrame, uWebSocketConst;
 
 type
@@ -83,9 +85,11 @@ type
     //
     FIsPerMessageDeflate: boolean;
     FCookie: RawByteString;
+    FOrigin: RawByteString;
+    FUserAgent: RawByteString;
+    FAddHeaders: TAnsiStrings;
     FVersion: Integer;
     FProtocol: RawByteString;
-    FOrigin: RawByteString;
     FExtensions: RawByteString;
     FPort: RawByteString;
     FHost: RawByteString;
@@ -135,7 +139,12 @@ type
     function SendData(const AData: RawByteString; const AWsCode: TWsOpcode = wsCodeText;
       const ATryDeflate: boolean = true): RawByteString;
     //---
+    property AddHeaders: TAnsiStrings read FAddHeaders;
     property Cookies: RawByteString read FCookie write FCookie;
+    property UserAgent: RawByteString read FUserAgent write FUserAgent;
+    property Origin: RawByteString read FOrigin write FOrigin;
+    property Protocol: RawByteString read FProtocol write FProtocol;
+    property Extensions: RawByteString read FExtensions write FExtensions;
     property IsServer: Boolean read FIsServer;
     property Headers: RawByteString read GetHeaders;
     property Host: RawByteString read FHost;
@@ -257,6 +266,7 @@ end;
 constructor TWebSocketUpgrade.Create;
 begin
   inherited;
+  FAddHeaders := TAnsiStringListSimple.Create;
   Clear();
 end;
 
@@ -304,6 +314,7 @@ destructor TWebSocketUpgrade.Destroy;
 begin
   FreeZBuffer(FInZBuffer);
   FreeZBuffer(FOutZBuffer);
+  FreeAndNil(FAddHeaders);
   inherited Destroy;
 end;
 {
@@ -621,7 +632,7 @@ end;
 function TWebSocketUpgrade.GetClientRequestHeaders: RawByteString;
 var
   j: Integer;
-  z, lproto, lhost, lcookie, lorigin, lext: RawByteString;
+  z, lproto, lhost, lcookie, lorigin, lext, lagent, laddheader: RawByteString;
 begin
   // key
   SetLength(z, WEBSOCKET_KEY_LEN);
@@ -639,6 +650,14 @@ begin
   // http get path
   if FPath = '' then
     FPath := '/';
+  //
+  lagent := '';
+  if FUserAgent <> '' then
+    lagent :=  'User-Agent: ' + FUserAgent + #13#10;
+  laddheader := '';
+  if FAddHeaders.Count > 0 then
+    for z in FAddHeaders do
+      laddheader := laddheader + z + #13#10;
   // http headers cookies
   lcookie := '';
   if FCookie <> '' then
@@ -660,13 +679,18 @@ begin
     'Host: ' + lhost + #13#10 +
     'Upgrade: websocket'#13#10 +
     'Connection: Upgrade'#13#10 +
+    'Pragma: no-cache'#13#10 +
+    'Cache-Control: no-cache'#13#10 +
+    lagent +
     lorigin +
     lcookie +
+    laddheader +
     'Sec-WebSocket-Key: ' + FKey + #13#10 +
     'Sec-WebSocket-Version: ' + IntToStr(FVersion) + #13#10 +
     lproto +
     lext +
     #13#10;
+
 end;
 
 function TWebSocketUpgrade.InitAsClient(const AUrl: RawByteString; const ATryDeflate: boolean): Boolean;
