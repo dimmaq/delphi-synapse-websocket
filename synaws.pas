@@ -237,7 +237,7 @@ begin
   FReadBuffer := FReadBuffer + z;
   SetCodePage(FReadBuffer, $FFFF, False);
   //
-  Result := FSocket.LastError <> 0;
+  Result := FSocket.LastError = 0;
 end;
 
 end.

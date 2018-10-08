@@ -71,8 +71,10 @@ type
 implementation
 
 const
-  PING_INTERVAL_DEFAULT = 60;
-  PONG_WAIT_DEFAULT = 10; // 1 minute
+  HEARTBEAT_INTERVAL = 1000 * 10; // 10 sec
+
+  PING_INTERVAL_DEFAULT = 60;     // 1 minute
+  PONG_WAIT_DEFAULT     = 30;     // 0.5 minute
 
 { TWorkThreadWebSocket }
 
@@ -112,6 +114,7 @@ procedure TWorkThreadWebSocket.Execute;
 var
   ldata: RawByteString;
   lcode: TWsOpcode;
+  again: Boolean;
 begin
   try
     if not FConn.Connect('') then
@@ -126,16 +129,17 @@ begin
       DoHeartbeat();
       if Aborted then
         Exit;
-      if FConn.WaitData(ConnectParam.RecvTimeout) then
+      if FConn.WaitData(HEARTBEAT_INTERVAL) then
       begin
-        if Aborted then
-          Exit;
-        while FConn.Recv(ldata, lcode) and (not Aborted) do
+        again := True;
+        while again and (not Aborted) do
         begin
-          LogDebug('< %d %s', [lcode, ldata]);
-          ProcessRecvData(lcode, ldata);
-          if Aborted then
-            Exit;
+          again := FConn.Recv(ldata, lcode);
+          if lcode <> wsNoFrame then
+          begin
+            LogDebug('< %d %s', [lcode, ldata]);
+            ProcessRecvData(lcode, ldata);
+          end;
         end;
       end;
       if FSocket.LastError <> 0 then
@@ -263,6 +267,7 @@ procedure TWorkThreadWebSocket.OnSendPing(const AData: RawByteString;
   const ACode: TWsOpcode);
 begin
   FIsPongRecv := False;
+  FPingTime := Now();
   LogDebug('send ping');
   Send(AData, ACode);
 end;
@@ -277,8 +282,7 @@ begin
   k := SecondsBetween(Now(), FPingTime);
   if (not FIsPongRecv) and (k > FPongWait) then
   begin
-    LogError('ping timeout %d sec, close', [FPongWait]);
-    Terminate;
+    Abort('ping timeout %d sec, terminate', [FPongWait]);
     Exit;
   end;
   if SecondsBetween(Now(), FPingTime) < FAutoPing then
