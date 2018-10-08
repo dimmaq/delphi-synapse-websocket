@@ -7,7 +7,8 @@ uses
   //
   blcksock,
   //
-  uWorkThreadSynaBase, synaws, uConnectParamInterface, uLoggerInterface,
+  uCookieManager, uWorkThreadSynaBase, synaws, uConnectParamInterface,
+  uLoggerInterface,
   uWebSocketUpgrade, uWebSocketConst;
 
 type
@@ -21,10 +22,19 @@ type
     FIsClosing: Boolean;
     FConn: TSynaws;
     FSocket: TTCPBlockSocket;
+    //
     procedure ProcessCloseFrame(const AData: RawByteString);
     procedure ProcessRecvData(const ACode: TWsOpcode; const AData: RawByteString);
     procedure DoHeartbeat;
+    //
+    function GetCookieManager: ICookieManager;
+    procedure SetCookieManager(const Value: ICookieManager);
+    function GetConnectParam: IConnectParam;
+    procedure SetConnectParam(const Value: IConnectParam);
+    function GetUrl: AnsiString;
+    procedure SetUrl(const Value: AnsiString);
   protected
+    procedure OnConnect; virtual; abstract;
     procedure OnSendPing(const AData: RawByteString; const ACode: TWsOpcode); virtual;
     procedure OnRecvPing(const AData: RawByteString); virtual;
     procedure OnRecvPong(const AData: RawByteString); virtual;
@@ -45,6 +55,9 @@ type
     function Send(const S: RawByteString; I: TWsOpcode): Boolean;
     function SendText(const S: string): Boolean; overload;
 
+    property ConnectParam: IConnectParam read GetConnectParam write SetConnectParam;
+    property Cookies: ICookieManager read GetCookieManager write SetCookieManager;
+    property Url: AnsiString read GetUrl write SetUrl;
     property AutoPing: Integer read FAutoPing write FAutoPing;
     property AutoPong: Boolean read FAutoPong write FAutoPong;
   end;
@@ -62,6 +75,9 @@ constructor TWorkThreadWebSocket.Create(const AUrl: AnsiString;
       const ALog: ILoggerInterface);
 begin
   Inherited Create(AConnectParam);
+
+  DumpResponce := False;
+
 
   FAutoPing := PING_INTERVAL_DEFAULT;
   FAutoPong := True;
@@ -91,7 +107,6 @@ var
   ldata: AnsiString;
   lcode: TWsOpcode;
 begin
-  FConn.Cookies := FCookies;
   try
     if not FConn.Connect('') then
     begin
@@ -99,14 +114,13 @@ begin
       Exit;
     end;
     LogInfo('conected, wait data');
-    //FConn.Send('', wsCodePing);
-
+    OnConnect();
     while not Aborted do
     begin
       DoHeartbeat();
       if Aborted then
         Exit;
-      if FConn.WaitData(FConnectParam.RecvTimeout) then
+      if FConn.WaitData(ConnectParam.RecvTimeout) then
       begin
         while FConn.Recv(ldata, lcode) and (not Aborted) do
         begin
@@ -129,6 +143,21 @@ begin
       raise
     end;
   end;
+end;
+
+function TWorkThreadWebSocket.GetConnectParam: IConnectParam;
+begin
+  Result := FConn.ConnectParam
+end;
+
+function TWorkThreadWebSocket.GetCookieManager: ICookieManager;
+begin
+  Result := FConn.Cookies
+end;
+
+function TWorkThreadWebSocket.GetUrl: AnsiString;
+begin
+  Result := FConn.Url
 end;
 
 procedure TWorkThreadWebSocket.OnRecvBinary(const ABin: RawByteString);
@@ -213,7 +242,8 @@ begin
   LogInfo('recv pong');
 end;
 
-procedure TWorkThreadWebSocket.OnSendPing(const AData: RawByteString; const ACode: TWsOpcode);
+procedure TWorkThreadWebSocket.OnSendPing(const AData: RawByteString;
+  const ACode: TWsOpcode);
 begin
   FIsPongRecv := False;
   LogInfo('send ping');
@@ -285,9 +315,24 @@ begin
 end;
 
 
+procedure TWorkThreadWebSocket.SetConnectParam(const Value: IConnectParam);
+begin
+  FConn.ConnectParam := Value
+end;
+
+procedure TWorkThreadWebSocket.SetCookieManager(const Value: ICookieManager);
+begin
+  FConn.Cookies := Value
+end;
+
 procedure TWorkThreadWebSocket.SetLogger;
 begin
   {}
+end;
+
+procedure TWorkThreadWebSocket.SetUrl(const Value: AnsiString);
+begin
+  FConn.Url := Value
 end;
 
 procedure TWorkThreadWebSocket.TerminatedSet;

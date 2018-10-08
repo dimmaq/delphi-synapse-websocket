@@ -36,6 +36,7 @@ type
     property IsConnected: Boolean read FIsConnected;
     property Socket: TTCPBlockSocket read FSocket;
     property Cookies: ICookieManager read FCookies write FCookies;
+    property ConnectParam: IConnectParam read FConnectParam write FConnectParam;
     property Url: AnsiString read FUrl write FUrl;
   end;
 
@@ -91,8 +92,7 @@ begin
 
   lcookies := '';
   if Assigned(FCookies) then
-    lcookies := AnsiString(FCookies.GetLine(GetUrlHost(string(FUrl)))); // cast
-
+    lcookies := FCookies.GetCookieA(GetUrlHostA(FUrl));
 
   if not Assigned(FUpgrader) then
     FUpgrader := TWebSocketUpgrade.CreateClient(FUrl, True);
@@ -104,7 +104,7 @@ begin
   FSocket.SSL.SSLType := LT_all;
   FSocket.RaiseExcept := True;
 
-  lproxy := ansiString(FConnectParam.SocksProxy);
+  lproxy := FConnectParam.SocksProxyA;
   if lproxy <> '' then
   begin
     FSocket.SocksType := ST_Socks4;
