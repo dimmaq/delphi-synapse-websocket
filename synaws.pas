@@ -31,7 +31,7 @@ type
     function Send(const A: RawByteString; const ACode: TWsOpcode = wsCodeText): Boolean;
     function SendText(const S: string): Boolean;
     function WaitData(const ATimeout: Integer): Boolean;
-    function Recv(var AData: AnsiString; var ACode: TWsOpcode): Boolean;
+    function Recv(var AData: RawByteString; var ACode: TWsOpcode): Boolean;
     //---
     property IsConnected: Boolean read FIsConnected;
     property Socket: TTCPBlockSocket read FSocket;
@@ -185,7 +185,7 @@ begin
   end;
 end;
 
-function TSynaws.Recv(var AData: AnsiString; var ACode: TWsOpcode): Boolean;
+function TSynaws.Recv(var AData: RawByteString; var ACode: TWsOpcode): Boolean;
 var z: AnsiString;
 begin
   AData := '';

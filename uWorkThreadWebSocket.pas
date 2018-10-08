@@ -110,7 +110,7 @@ end;
 
 procedure TWorkThreadWebSocket.Execute;
 var
-  ldata: AnsiString;
+  ldata: RawByteString;
   lcode: TWsOpcode;
 begin
   try
