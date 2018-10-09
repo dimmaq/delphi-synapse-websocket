@@ -38,6 +38,7 @@ type
   protected
     procedure OnConnect; virtual;
     procedure OnSendPing(const AData: RawByteString; const ACode: TWsOpcode); virtual;
+    procedure OnSendPong(const AData: RawByteString; const ACode: TWsOpcode); virtual;
     procedure OnRecvPing(const AData: RawByteString); virtual;
     procedure OnRecvPong(const AData: RawByteString); virtual;
     procedure OnRecvClose(const ACloseCode: TWsCloseCode; const AReason: UTF8String); virtual;
@@ -268,7 +269,7 @@ procedure TWorkThreadWebSocket.OnRecvPing(const AData: RawByteString);
 begin
   LogDebug('recv ping');
   if FAutoPong then
-    Send(AData, wsCodePong)
+    OnSendPong(AData, wsCodePong)
 end;
 
 procedure TWorkThreadWebSocket.OnRecvPong(const AData: RawByteString);
@@ -284,6 +285,13 @@ begin
   FPingTime := Now();
   LogDebug('send ping');
   Send(AData, ACode);
+end;
+
+procedure TWorkThreadWebSocket.OnSendPong(const AData: RawByteString;
+  const ACode: TWsOpcode);
+begin
+  LogDebug('send pong');
+  Send(AData, ACode)
 end;
 
 procedure TWorkThreadWebSocket.DoHeartbeat;
