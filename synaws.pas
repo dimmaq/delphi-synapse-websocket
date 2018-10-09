@@ -24,6 +24,9 @@ type
     FUpgrader: TWebSocketUpgrade;
     FCookies: ICookieManager;
     FUrl: AnsiString;
+    FOrigin: RawByteString;
+    FUserAgent: RawByteString;
+    //FAddHeaders: TAnsiStrings;
     FReadBuffer: RawByteString;
     FSendLock: TCriticalSection;
   public
@@ -42,6 +45,8 @@ type
     property Cookies: ICookieManager read FCookies write FCookies;
     property ConnectParam: IConnectParam read FConnectParam write FConnectParam;
     property Url: AnsiString read FUrl write FUrl;
+    property Origin: RawByteString read FOrigin write FOrigin;
+    property UserAgent: RawByteString read FUserAgent write FUserAgent;
   end;
 
 implementation
@@ -64,6 +69,8 @@ begin
   FSocket.Owner := Self;
 
   FSocket.NagleMode := False; // nodelay switch on
+
+  FUpgrader := TWebSocketUpgrade.Create;
 end;
 
 destructor TSynaws.Destroy;
@@ -98,9 +105,11 @@ begin
   if Assigned(FCookies) then
     lcookies := FCookies.GetCookieA(GetUrlHostA(FUrl));
 
-  if not Assigned(FUpgrader) then
-    FUpgrader := TWebSocketUpgrade.CreateClient(FUrl, True);
+  FUpgrader.InitAsClient(FUrl, True);
   FUpgrader.Cookies := lcookies;
+  FUpgrader.UserAgent := FUserAgent;
+  FUpgrader.Origin := FOrigin;
+  //FUpgrader.AddHeaders.AddStrings();
 
   FSocket.ConnectionTimeout := FConnectParam.ConnectTimeout;
   FSocket.SetTimeout(FConnectParam.RecvTimeout);

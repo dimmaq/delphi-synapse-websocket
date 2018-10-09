@@ -62,6 +62,7 @@ type
     //
     property OnConnectedEvent: TNotifyEvent read FOnConnectedEvent write FOnConnectedEvent;
     //
+    property Conn: TSynaws read FConn;
     property ConnectParam: IConnectParam read GetConnectParam write SetConnectParam;
     property Cookies: ICookieManager read GetCookieManager write SetCookieManager;
     property Url: AnsiString read GetUrl write SetUrl;
@@ -139,7 +140,7 @@ begin
           again := Recv(ldata, lcode);
           if lcode <> wsNoFrame then
           begin
-            LogDebug('< %d %s', [lcode, ldata]);
+            LogDebug('> %d %s', [lcode, ldata]);
             ProcessRecvData(lcode, ldata);
           end;
         end;
@@ -308,12 +309,12 @@ begin
   Result := False;
   if FConn.SendText(S) then
   begin
-    LogDebug('> %d "%s"', [wsCodeText, S]);
+    LogDebug('< %d "%s"', [wsCodeText, S]);
     Result := True;
   end
   else
   begin
-    LogError('> %d "%s"', [wsCodeText, S]);
+    LogError('< %d "%s"', [wsCodeText, S]);
     LogError('# %d "%s"', [FSocket.LastError, FSocket.LastErrorDesc])
   end;
 end;
@@ -327,12 +328,12 @@ begin
     Exit;
   if FConn.Send(S, I) then
   begin
-    LogDebug('> %d "%s"', [I, S]);
+    LogDebug('< %d "%s"', [I, S]);
     Result := True
   end
   else
   begin
-    LogError('> %d "%s"', [I, S]);
+    LogError('< %d "%s"', [I, S]);
     LogError('# %d "%s"', [FSocket.LastError, FSocket.LastErrorDesc])
   end;
 end;
