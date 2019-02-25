@@ -7,7 +7,7 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls,
   //
   synaws, uWorkThreadWebSocket, uSimpleConnectParam, uConnectParamInterface,
-  uLoggerInterface, uReLog3, uCookieManager;
+  uLoggerInterface, uReLog3, uCookieManagerInterface, uCookieManagerSimple;
 
 type
   TForm1 = class(TForm)
@@ -43,7 +43,7 @@ var
 implementation
 
 uses
-  uGlobalVars, uWebSocketConst, ZLibEx, ZLibExApi,
+  uGlobalVars, uWebSocketConst, ZLibEx, ZLibExApi, ssl_openssl_lib,
   //
   uTest;
 
@@ -116,9 +116,14 @@ begin
   re := TReLog3.Create(redtlog, gDirLog + 'log.txt');;
 //  re.TrimOut := True;
   re.LogHistSize := 100000;
-  FLog := re;
-  FCookies := CreateCookieManager('');
+  re.LevelLimit := logDebug;
+  FCookies := CreateCookieManagerSimple('');
 //  FCookies.SetCookie('pubsub-edge.twitch.tv', COOKIES);
+  FLog := re;
+  FLog.Info(string(SSLeayversion(0)));
+  FLog.Info('--- ' + SSLUtilFile);
+  FLog.Info('--- ' + SSLLibFile);
+  FLog.Info('-----------------------');
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);

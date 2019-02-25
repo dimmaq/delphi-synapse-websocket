@@ -91,9 +91,11 @@ begin
       raise Exception.Create('client confirm');
 
     Result := TestUpgrader(ws, S, ALog);
+    Exit;
   finally
     ws.Free;
   end;
+  Result := False;
 end;
 
 function TestRequestRaw(S: RawByteString; const ALog: ILoggerInterface): Boolean;

@@ -7,7 +7,7 @@ uses
   //
   blcksock,
   //
-  uCookieManager, uWorkThreadSynaBase, synaws, uConnectParamInterface,
+  uCookieManagerInterface, uWorkThreadSynaBase, synaws, uConnectParamInterface,
   uLoggerInterface,
   uWebSocketUpgrade, uWebSocketConst;
 

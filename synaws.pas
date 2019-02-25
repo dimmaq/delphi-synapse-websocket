@@ -9,7 +9,7 @@ uses
   //
   uWebSocketUpgrade, uWebSocketConst, uConnectParamInterface,
   //
-  uCookieManager;
+  uCookieManagerInterface;
 
 type
   TSynaws = class
