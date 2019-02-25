@@ -3,7 +3,7 @@
 interface
 
 uses
-  Classes, SysUtils
+  Classes, SysUtils, Types
   {$IFNDEF UNICODE}, AcedStrings{$ENDIF}
   ;
 
@@ -21,7 +21,7 @@ type
   TArrayRawByteString = array of RawByteString;
   {$ENDIF}
 
-  TStringDynArray = array of string;
+//  TStringDynArray = array of string;
   {$IFDEF UNICODE}
   TAnsiStringDynArray = array of AnsiString;
   {$ELSE}

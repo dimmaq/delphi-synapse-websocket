@@ -1,28 +1,14 @@
 ﻿unit uGlobalFunctions;
 
-// {$DEFINE USE_REGULAR_EXPRESSIONS}
-
 interface
 
 uses
   Windows, SysUtils, Classes, RTLConsts, Math,
+  {$IFDEF UNICODE}AnsiStrings, Masks,{$ENDIF}
   //
-  ZLibExGZ, ZLibEx,
-  //
-  AcedContainers, AcedStrings, AcedCommon,
-  //
-  uGlobalTypes, uGlobalConstants,
+  uGlobalTypes,
   uAnsiStringList
-  {$IFDEF UNICODE}
-    , AnsiStrings, Masks
-  {$ENDIF}
   ;
-
-
-{$IFNDEF UNICODE}
-type
-  RawByteString = type AnsiString;
-{$ENDIF}
 
 function TStringList_Create(
   const ASort: Boolean = False;
@@ -119,10 +105,9 @@ function GetTmpFileName(const APrefix: string = '';
   const AExt: string = ''): string;
 //---
 
-//---
-function FileVersion(AFileName: string): string;
-function AppVersion: string;
-
+function HtmlSpecCharsDecode(const AText: AnsiString): AnsiString;
+procedure HtmlTagsDelete(var AText: AnsiString);
+function HtmlTagsDelete2(const AText: AnsiString): AnsiString;
 function GZipEncode(var ABuffer: RawByteString): Boolean; overload;
 function GZipEncode(var ABuffer: AnsiString): Boolean; overload;
 function IsGZipData(const AData: AnsiString): Boolean;
@@ -161,9 +146,11 @@ implementation
 uses
   SysConst,
   //
-  {$IFDEF USE_REGULAR_EXPRESSIONS}uRegExprFunc,{$ENDIF}
+  ZLibExGZ, ZLibEx,
   //
-  uGlobalVars, uGlobalFileIoFunc, uStringUtils;
+  AcedContainers, AcedStrings, AcedCommon,
+  //
+  uGlobalVars, uGlobalConstants, uStringUtils;
 
 var
   _iTmpFile : Integer = 1;
@@ -763,131 +750,138 @@ begin
   Result := APrefix + SysUtils.IntToStr(InterlockedIncrement(_iTmpFile)) + APostfix + AExt
 end;
 
-//---
-function FileVersion(AFileName: string): string;
+function HtmlSpecCharsDecode(const AText: AnsiString):AnsiString;
+type
+  TSpecStrRec = record
+    a: string[6];
+    b: string[1];
+  end;
+const
+  SpecStrArray: array[0..5] of TSpecStrRec = (
+    (a:'&apos;'; b:''''),
+    (a:'&#039;'; b:''''),
+    (a:'&quot;'; b:'"'),
+    (a:'&gt;';   b:'>'),
+    (a:'&lt;';   b:'<'),
+    (a:'&amp;';  b:'&')
+  );
 var
-  sName: string;
-  P: Pointer;
-  Value: Pointer;
-  Len: UINT;
-  GetTranslationString: string;
-  FValid: Boolean;
-  FSize: DWORD;
-  FHandle: DWORD;
-  FBuffer: PChar;
+  A: TSpecStrRec;
+  j: Integer;
 begin
-  Result := '';
-  FBuffer := nil;
-  FSize := 0;
-  try
-    FSize := GetFileVersionInfoSize(PChar(AFileName), FHandle);
-    if FSize > 0 then
-    begin
-      GetMem(FBuffer, FSize);
-      FValid := GetFileVersionInfo(PChar(AFileName), FHandle, FSize, FBuffer);
-      if FValid then
+  Result := AText;
+  for j:=Low(SpecStrArray) to High(SpecStrArray) do
+  begin
+    A := SpecStrArray[j];
+    Result := G_ReplaceStr(Result, A.a, A.b);
+  end;
+end;
+
+procedure HtmlTagsDelete(var AText: AnsiString);
+const
+  not_tag_char = [#0..#255] - gCharsEng;
+  block_tag : array[0..3] of AnsiString = (
+    'table',
+    'div',
+    'p',
+    'li'
+  );
+
+  function _is_block_tag(const AText: AnsiString): Boolean;
+  var j: Integer;
+  begin
+    Result := False;
+    for j:=Low(block_tag) to High(block_tag) do
+      if G_CompareStr(block_tag[j], AText)=0 then
       begin
-        VerQueryValue(FBuffer, '\VarFileInfo\Translation', p, Len);
-        GetTranslationString := IntToHex(MakeLong(HiWord(Longint(P^)), LoWord(Longint(P^))), 8);
-        sName := '\StringFileInfo\' + GetTranslationString + '\FileVersion';
-        if VerQueryValue(FBuffer, PChar(sName), Value, Len) then
-          SetString(Result, PChar(Value), Len);
+        Result := True;
+        Exit;
+      end
+  end;
+
+var
+  n,k,l,p : Integer;
+  z : TAnsiStringBuilder;
+  tag: AnsiString;
+begin
+  z := TAnsiStringBuilder.Create;
+  try
+    n := 1;
+  //  k := Length(aStr);
+    while n>0 do
+    begin
+      k := G_CharPos('<', AText, n);
+      if k>0 then
+      begin
+        l := k - n;
+        if l>0 then
+          z.Append(Copy(AText, n, l));
+        n := G_CharPos('>', AText, k) + 1;
+        if n=1 then // не найдено ">"
+        begin
+          z.Append(Copy(AText, k, MaxInt));
+          Break;
+        end
+        else
+        begin // проверить имя тега
+          tag := Copy(AText, k+1, n-k-2);
+          if tag<>'' then
+          begin
+            if tag[1]='/' then
+              Delete(tag, 1, 1);
+            if tag<>'' then
+            begin
+              p := CharsPos(not_tag_char, tag);
+              if p>0 then
+                Delete(tag, p, MaxInt);
+              if tag<>'' then
+              begin
+                if _is_block_tag(G_ToLower(tag)) then
+                  z.Append(CR);
+              end
+            end
+          end
+        end
+      end
+        else
+      begin // не найдено "<"
+        z.Append(Copy(AText, n, MaxInt));
+        Break;
       end;
     end;
+    //---
+    AText := z.ToString;
   finally
-    if FBuffer<>nil then
-      FreeMem(FBuffer, FSize);
+    z.Free
   end;
-  Result := Trim(Result)
 end;
 
-function GetModuleVersion(Instance: THandle; out iMajor, iMinor, iRelease, iBuild: Integer): Boolean;
-var
-    fileInformation: PVSFIXEDFILEINFO;
-    verlen: Cardinal;
-    rs: TResourceStream;
-    m: TMemoryStream;
-    resource: HRSRC;
+function HtmlTagsDelete2(const AText: AnsiString): AnsiString;
 begin
-  //You said zero, but you mean "us"
-  if Instance = 0 then
-    Instance := HInstance;
+  Result := AText;
+  HtmlTagsDelete(Result)
+end;
 
-  //UPDATE: Workaround bug in Delphi if resource doesn't exist
-  resource := FindResource(Instance, PChar(1), RT_VERSION);
-  if (resource = 0) then
-  begin
-     iMajor := 0;
-     iMinor := 0;
-     iRelease := 0;
-     iBuild := 0;
-     Result := False;
-     Exit;
-  end;
-
-  m := TMemoryStream.Create;
+function GZipEncode(var ABuffer: RawByteString): Boolean;
+begin
+  Result := False;
   try
-    rs := TResourceStream.CreateFromID(Instance, 1, RT_VERSION);
-    try
-      m.CopyFrom(rs, rs.Size);
-    finally
-      rs.Free;
-    end;
-
-    m.Position:=0;
-    if not VerQueryValue(m.Memory, '\', Pointer(fileInformation), verlen) then
+    if IsGZipData(ABuffer) then
     begin
-      iMajor := 0;
-      iMinor := 0;
-      iRelease := 0;
-      iBuild := 0;
-      Result := False;
-      Exit;
+      ABuffer := GZDecompressStr(ABuffer);
+      Result := True;
     end;
-
-    iMajor   := fileInformation.dwFileVersionMS shr 16;
-    iMinor   := fileInformation.dwFileVersionMS and $FFFF;
-    iRelease := fileInformation.dwFileVersionLS shr 16;
-    iBuild   := fileInformation.dwFileVersionLS and $FFFF;
-  finally
-      m.Free;
+  except
+    on E:EZDecompressionError do
+    begin
+      //***
+    end
+    else
+    begin
+      raise
+    end;
   end;
-  Result := True;
 end;
-
-function AppVersion: string;
-var iMajor, iMinor, iRelease, iBuild: Integer;
-begin
-  GetModuleVersion(0, iMajor, iMinor, iRelease, iBuild);
-  Result := Format('%d.%d.%d.%d', [iMajor, iMinor, iRelease, iBuild])
-end;
-
-
-
-{$IFDEF USE_REGULAR_EXPRESSIONS}
-function IsIP(const AStr: AnsiString; AOut: TAnsiStrings): Boolean;
-const
-  c_dd = '(\d{1,3})';
-  c_ip = '^'+c_dd+'\.'+c_dd+'\.'+c_dd+'\.'+c_dd+'$';
-begin
-  if Assigned(AOut) then
-    Result := uRegExprFunc.GetMatches(AStr, c_ip, AOut)
-  else
-    Result := uRegExprFunc.YesRegExpr(AStr, c_ip);
-end;
-
-function IsIPPort(const AStr: AnsiString; AOut: TAnsiStrings): Boolean;
-const
-  c_dd = '(\d{1,3})';
-  c_port = '(\d{1,5})';
-  c_ipport = '^('+c_dd+'\.'+c_dd+'\.'+c_dd+'\.'+c_dd+'):'+c_port+'$';
-begin
-  if Assigned(AOut) then
-    Result := uRegExprFunc.GetMatches(AStr, c_ipport, AOut)
-  else
-    Result := uRegExprFunc.YesRegExpr(AStr, c_ipport);
-end;
-{$ENDIF}
 
 function GZipEncode(var ABuffer: AnsiString): Boolean;
 var z: RawByteString;

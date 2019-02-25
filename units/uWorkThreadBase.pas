@@ -3,10 +3,9 @@
 interface
 
 uses
-  System.Classes, System.SysUtils, System.SyncObjs, Winapi.Windows, Vcl.Forms,
-  System.StrUtils,
+  System.Classes, System.SysUtils, System.SyncObjs, Vcl.Forms,
   //---
-  uReLog3, uLoggerInterface,
+  uLoggerInterface,
   uTextWriter;
 
 type
@@ -90,9 +89,9 @@ type
 implementation
 
 uses
-  uGlobalConstants, uGlobalVars, uStringUtils, uGlobalFunctions, uGlobalFileIoFunc,
-  AcedStrings, uRegExprFunc;
-
+  AcedStrings,
+  //
+  uGlobalTypes, uGlobalFileIoFunc, uGlobalConstants, uStringUtils;
 
 { TWorkThreadBase }
 
@@ -109,7 +108,7 @@ end;
 
 procedure TWorkThreadBase.AddDump(ATyp: AnsiChar; const AData: string);
 begin
-  AddDump(ATyp, RawByteString(AData));
+  AddDump(ATyp, AnsiString(AData)); // string cast
 end;
 
 var

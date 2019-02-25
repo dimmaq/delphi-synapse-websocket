@@ -106,7 +106,6 @@ function StringsLoadFromFileA(
   AReadByLine: Boolean = False
 ): TAnsiStrings;  {$IFDEF UNICODE} overload; {$ENDIF}
 
-{$IFDEF UNICODE}
 /// <summary>
 /// Загрузка файла в TStrings
 /// </summary>
@@ -123,7 +122,6 @@ function StringsLoadFromFile(
   AAlwaysClear: Boolean = True;
   AReadByLine: Boolean = False
 ): TStrings; overload;
-{$ENDIF}
 
 /// <summary>
 /// Запись в файла из TStrings построчно
@@ -248,7 +246,8 @@ function DeleteAllFilesInDir(const ADirName: TFileName; const AMask: string;
 implementation
 
 uses
-  uGlobalVars, uGlobalFunctions, uTextReader, uTextWriter, uDynArrays, uFindInDirHelper;
+  uGlobalVars, uGlobalFunctions, uTextReader, uTextWriter, uDynArrays,
+  uFindInDirHelper;
 
 {$IFNDEF UNICODE}
 function GetLongPathName; external kernel32 name 'GetLongPathNameA';
@@ -481,7 +480,6 @@ begin
   end;
 end;
 
-{$IFDEF UNICODE}
 function StringsLoadFromFile(const AFileName: TFileName; AStrings: TStrings;
   ATestFileExist, AAlwaysClear, AReadByLine: Boolean): TStrings;
 var reader: TStreamReader;
@@ -517,7 +515,6 @@ begin
     AStrings.EndUpdate
   end;
 end;
-{$ENDIF}
 
 procedure StringsSaveToFileA(const AFileName: TFileName; const AStrings: array of TAnsiStrings;
   AAppend, AUseTextWriter, ARaiseException: Boolean);

@@ -3,13 +3,11 @@
 interface
 
 uses
-  System.Classes, System.SysUtils, System.SyncObjs, Winapi.Windows, Vcl.Forms,
-  System.StrUtils,
+  System.Classes, System.SysUtils,
   //---
-  blcksock, synsock, synacode,
+  blcksock, synsock,
   //---
-  uWorkThreadBase, uCookieManager,
-  uConnectParamInterface;
+  uWorkThreadBase, uCookieManagerInterface, uConnectParamInterface;
 
 type
   TWorkThreadSynaBase = class abstract(TWorkThreadBase)
@@ -20,9 +18,9 @@ type
     FRaiseProtoError: Boolean;
     FRaiseInetError: Boolean;
   protected
-    // события
+    // synsock events
     procedure HookMonitor(Sender: TObject; Writing: Boolean; const Buffer: TMemory; Len: Integer);
-    procedure HookSocketStatus(Sender: TObject; Reason: THookSocketReason; const Value: String);
+    procedure HookSocketStatus(Sender: TObject; Reason: THookSocketReason; const Value: string);
   public
     constructor Create(const AConnectParam: IConnectParam);
     destructor Destroy; override;
@@ -37,8 +35,7 @@ type
 implementation
 
 uses
-  uGlobalConstants, uGlobalVars, uStringUtils, uGlobalFunctions, uGlobalFileIoFunc,
-  AcedStrings, uRegExprFunc;
+  uGlobalTypes;
 
 { TWorkThreadSynaBase }
 
@@ -68,15 +65,15 @@ begin
     Exit;
   //---
   SetLength(buf, len);
-  CopyMemory(Pointer(buf), Buffer, len);
+  Move(Pointer(Buffer)^, Pointer(buf)^, len);
   //---
   AddDump(typ[Writing], buf)
 end;
 
 procedure TWorkThreadSynaBase.HookSocketStatus(Sender: TObject;
-  Reason: THookSocketReason; const Value: String);
+  Reason: THookSocketReason; const Value: string);
 const
-  reason_str : array[THookSocketReason] of AnsiString = (
+  reason_str : array[THookSocketReason] of string = (
     'HR_ResolvingBegin',
     'HR_ResolvingEnd',
     'HR_SocketCreate',
@@ -93,7 +90,7 @@ const
     'HR_Error'
   );
 begin
-  AddDump('*', reason_str[Reason] + ' - ' + AnsiString(Value));
+  AddDump('*', reason_str[Reason] + ' - ' + Value);
 end;
 
 end.

@@ -2,7 +2,9 @@
 
 interface
 
-{$INCLUDE DelphiVersions.inc}
+{$INCLUDE jedi.inc}
+
+{$DEFINE SET_THREAD_LOCATE_RUS}
 
 {$IFDEF UNICODE}
   {$WARN IMPLICIT_STRING_CAST OFF}
@@ -10,7 +12,7 @@ interface
 {$ENDIF}
 
 uses
-  SysUtils, Windows, {$IFDEF DELPHIXE+}Vcl.Graphics{$ELSE}Graphics{$ENDIF},
+  SysUtils, Windows, {$IFDEF DELPHIXE_UP}Vcl.Graphics{$ELSE}Graphics{$ENDIF},
   uGlobalTypes;
 
 var
@@ -34,7 +36,6 @@ var
   gDirLogA: AnsiString = '';
   gStartTime: TDateTime;
   gStartTimeStrA: AnsiString = '';
-  gAppVer: string;
 
 procedure ApplyGlobalPaths(const ABasePath: TFileName;
   const ACreateDirs: Boolean = False);
@@ -119,10 +120,12 @@ begin
 end;
 
 initialization
+  {$IFDEF SET_THREAD_LOCATE_RUS}
   if not SetThreadLocale(1049) then
     {$IFNDEF SILENTMODE}
       ShowError(SysErrorMessage(GetLastError()));
     {$ENDIF}
+  {$ENDIF}
 
   //---
   gStartTime := Now();
@@ -131,7 +134,5 @@ initialization
   //---
   gDirAppA       := gDirApp;
   gStartTimeStrA := gStartTimeStr;
-  //---
-  gAppVer := AppVersion();
 
 end.

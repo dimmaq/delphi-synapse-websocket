@@ -2,10 +2,10 @@
 
 interface
 
-{$INCLUDE DelphiVersions.inc}
+{$INCLUDE jedi.inc}
 
 uses
-  {$IFDEF DELPHIXE+}Vcl.Graphics{$ELSE}Graphics{$ENDIF};
+  {$IFDEF DELPHIXE_UP}Vcl.Graphics{$ELSE}Graphics{$ENDIF};
 
 const
   CR = AnsiChar(#13);
@@ -60,12 +60,10 @@ const
    clWindow
   );
 
-
 const
   csSPECIALS = ['(', ')', '[', ']', '<', '>', ':', ';', '.', ',', '@', '\', '"'];  {Do not Localize}
   csNeedEncode = [#0..#31, #127..#255] + csSPECIALS;
   csReqQuote = csNeedEncode + ['?', '=', '_'];   {Do not Localize}
-
 
 implementation
 

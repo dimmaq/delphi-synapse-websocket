@@ -1,51 +1,24 @@
-unit uCookieManager;
+unit uCookieManagerSimple;
 
 interface
 
 uses
-  Windows, SysUtils, Classes,
-  {$IFDEF UNICODE}IOUtils, System.Generics.Collections, AnsiStrings, {$endif}
-  SyncObjs, Types,
+  System.SysUtils,
   //
-  uAnsiStringList;
+  uCookieManagerInterface;
 
-type
-  ICookieManager = interface
-    // load&save list:
-    // name=value
-    // name2=val2
-    procedure LoadFrom(const AHost: string; const ASrc: TStrings);
-    procedure LoadFromA(const AHost: AnsiString; const ASrc: TAnsiStrings);
-    procedure SaveTo(const AHost: string; const ADest: TStrings);
-    procedure SaveToA(const AHost: AnsiString; const ADest: TAnsiStrings);
-    // load &save host, name, value
-    procedure SetValue(const AHost, AName, AValue: string);
-    procedure SetValueA(const AHost, AName, AValue: AnsiString);
-    function GetValue(const AHost, AName: string): string;
-    function GetValueA(const AHost, AName: AnsiString): AnsiString;
-    //
-    // Cookie: yummy_cookie=choco; tasty_cookie=strawberry
-    function GetCookie(const AHost: string): string;
-    function GetCookieA(const AHost: AnsiString): AnsiString;
-    //
-    // Set-Cookie: name=newvalue; expires=date; path=/; domain=.example.org.
-    // Set-Cookie: RMID=732423sdfs73242; expires=Fri, 31 Dec 2010 23:59:59 GMT; path=/; domain=.example.net
-    procedure SetCookie(const AHost, ACookie: string);
-    procedure SetCookieA(const AHost, ACookie: AnsiString);
-    //
-    procedure Clear;
-    function IsEmpty: Boolean;
-  end;
-
-function CreateCookieManager(const ASavePath: TFileName): ICookieManager;
-function CreateFakeCookieManager: ICookieManager;
+function CreateCookieManagerSimple(const ASavePath: TFileName): ICookieManager;
 
 implementation
 
 uses
+  System.Classes, System.Generics.Collections, System.SyncObjs, System.Types,
+  System.IOUtils, System.AnsiStrings,
+  //
   AcedStrings,
   //
-  uStringUtils, uGlobalFileIoFunc, uGlobalFunctions;
+  uStringUtils, uGlobalFileIoFunc, uGlobalFunctions,
+  uAnsiStringList;
 
 type
   {$IFNDEF UNICODE}
@@ -54,8 +27,8 @@ type
       constructor Create;
       destructor Destroy; override;
       function Count: Integer;
-      function TryGetValue(const AHost: string; var AList: TStringList): Boolean;
-      procedure Add(const AHost: string; AList: TStringList);
+      function TryGetValue(const AHost: string; var AList: TStrings): Boolean;
+      procedure Add(const AHost: string; AList: TStrings);
       procedure Clear;
     end;
   {$ENDIF}
@@ -113,42 +86,9 @@ type
     function IsEmpty: Boolean;
   end;
 
-  TFakeCookies = class(TInterfacedObject, ICookieManager)
-  private
-  public
-    //---
-    procedure LoadFrom(const AHost: string; const AList: TStrings);
-    procedure LoadFromA(const AHost: AnsiString; const AList: TAnsiStrings);
-    procedure SaveTo(const AHost: string; const AList: TStrings);
-    procedure SaveToA(const AHost: AnsiString; const AList: TAnsiStrings);
-    // load &save host, name, value
-    procedure SetValue(const AHost, AName, AValue: string);
-    procedure SetValueA(const AHost, AName, AValue: AnsiString);
-    function GetValue(const AHost, AName: string): string;
-    function GetValueA(const AHost, AName: AnsiString): AnsiString;
-    //
-    // Cookie: yummy_cookie=choco; tasty_cookie=strawberry
-    function GetCookie(const AHost: string): string;
-    function GetCookieA(const AHost: AnsiString): AnsiString;
-    //
-    // Set-Cookie: name=newvalue; expires=date; path=/; domain=.example.org.
-    // Set-Cookie: RMID=732423sdfs73242; expires=Fri, 31 Dec 2010 23:59:59 GMT; path=/; domain=.example.net
-    procedure SetCookie(const AHost, ACookie: string);
-    procedure SetCookieA(const AHost, ACookie: AnsiString);
-    //
-    procedure Clear;
-    function IsEmpty: Boolean;
-  end;
-
-
-function CreateCookieManager(const ASavePath: TFileName): ICookieManager;
+function CreateCookieManagerSimple(const ASavePath: TFileName): ICookieManager;
 begin
   Result := TCookies.Create(ASavePath);
-end;
-
-function CreateFakeCookieManager: ICookieManager;
-begin
-  Result := TFakeCookies.Create;
 end;
 
 
@@ -220,9 +160,14 @@ begin
 end;
 
 procedure TCookies._LoadFromPath(const AHost: AnsiString; const AList: TAnsiStrings);
+var fp: TFileName;
 begin
   if FPathExists then
-    AList.LoadFromFileIfExists(GetFilePath(AHost));
+  begin
+    fp := GetFilePath(AHost);
+    if FileExists(fp) then
+      AList.LoadFromFile(fp);
+  end;
 end;
 
 procedure TCookies._SaveToPath(const AHost: AnsiString; const AList: TAnsiStrings);
@@ -233,16 +178,21 @@ end;
 
 procedure TCookies._SaveHostList(const AHost: AnsiString; const AList: TAnsiStrings;
   const ARewriteList, ASaveToPath: Boolean);
-var sl: TAnsiStrings;
+var
+  sl: TAnsiStrings;
+  nh: AnsiString;
 begin
   if ARewriteList then
   begin
-    sl := _Get(AHost, True, True);
+    nh := NormalizeHost(AHost);
+    if nh = '' then
+      Exit;
+    sl := _Get(nh, True, True);
     if Assigned(sl) then
       sl.Assign(AList)
   end;
   if ASaveToPath then
-    _SaveToPath(AHost, AList);
+    _SaveToPath(nh, AList);
 end;
 
 function TCookies._Get(const AHost: AnsiString; const AAppend, ALoadFromPath: Boolean): TAnsiStrings;
@@ -272,7 +222,8 @@ begin
   if not Assigned(sl) then
     Exit;
   ADest.AddStrings(sl);
-  _GetRecursive(HostUp(z), ADest);
+  Exit;
+ // _GetRecursive(HostUp(z), ADest);
 end;
 
 function TCookies._FindRecursive(const AHost, AName: AnsiString): AnsiString;
@@ -340,6 +291,7 @@ end;
 
 procedure TCookies.SaveToA(const AHost: AnsiString; const ADest: TAnsiStrings);
 begin
+  ADest.Clear;
   FLock.Enter;
   try
     _GetRecursive(AHost, ADest)
@@ -451,7 +403,8 @@ var
   name, value, domain: AnsiString;
   h,z,s,n,v: AnsiString;
 begin
-  z := Trim(ACookie);
+  z := ACookie;
+  G_Trim(z);
   if StartsWith(z, 'Set-Cookie: ', True) then
     Delete(z, 1, 12);
   z := Trim(ACookie);
@@ -459,7 +412,7 @@ begin
   name := Trim(StrCut(z, '='));
   // newvalue; expires=date; path=/; domain=.example.org.
   value := Trim(StrCut(z, ';'));
-  z := Trim(z);
+  G_Trim(z);
   domain := '';
   // expires=date; path=/; domain=.example.org.
   while z <> '' do
@@ -534,81 +487,11 @@ begin
   end
 end;
 
-{ TFakeCookies }
-
-procedure TFakeCookies.Clear;
-begin
-end;
-
-function TFakeCookies.IsEmpty: Boolean;
-begin
-  Result := True
-end;
-
-procedure TFakeCookies.LoadFrom(const AHost: string; const AList: TStrings);
-begin
-end;
-
-procedure TFakeCookies.LoadFromA(const AHost: AnsiString; const AList: TAnsiStrings);
-begin
-end;
-
-procedure TFakeCookies.SaveTo(const AHost: string; const AList: TStrings);
-begin
-end;
-
-procedure TFakeCookies.SaveToA(const AHost: AnsiString; const AList: TAnsiStrings);
-begin
-end;
-
-// load &save host, name, value
-procedure TFakeCookies.SetValue(const AHost, AName, AValue: string);
-begin
-end;
-
-procedure TFakeCookies.SetValueA(const AHost, AName, AValue: AnsiString);
-begin
-end;
-
-function TFakeCookies.GetValue(const AHost, AName: string): string;
-begin
-  Result := '';
-end;
-
-function TFakeCookies.GetValueA(const AHost, AName: AnsiString): AnsiString;
-begin
-  Result := '';
-end;
-
-//
-// Cookie: yummy_cookie=choco; tasty_cookie=strawberry
-function TFakeCookies.GetCookie(const AHost: string): string;
-begin
-  Result := '';
-end;
-
-function TFakeCookies.GetCookieA(const AHost: AnsiString): AnsiString;
-begin
-  Result := '';
-end;
-
-//
-// Set-Cookie: name=newvalue; expires=date; path=/; domain=.example.org.
-// Set-Cookie: RMID=732423sdfs73242; expires=Fri, 31 Dec 2010 23:59:59 GMT; path=/; domain=.example.net
-procedure TFakeCookies.SetCookie(const AHost, ACookie: string);
-begin
-end;
-
-procedure TFakeCookies.SetCookieA(const AHost, ACookie: AnsiString);
-begin
-end;
-
-
 {$IFNDEF UNICODE}
 
 { TDictionaryStringStringList }
 
-procedure TDictionaryStringStringList.Add(const AHost: string; AList: TStringList);
+procedure TDictionaryStringStringList.Add(const AHost: string; AList: TStrings);
 begin
   FItems.AddObject(AHost, AList)
 end;
@@ -643,7 +526,7 @@ begin
   inherited;
 end;
 
-function TDictionaryStringStringList.TryGetValue(const AHost: string; var AList: TStringList): Boolean;
+function TDictionaryStringStringList.TryGetValue(const AHost: string; var AList: TStrings): Boolean;
 var k: Integer;
 begin
   k := FItems.IndexOf(AHost);
@@ -657,5 +540,5 @@ begin
 end;
 {$ENDIF}
 
-end.
 
+end.

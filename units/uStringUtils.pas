@@ -2,10 +2,10 @@
 
 interface
 
-{$INCLUDE DelphiVersions.inc}
+{$INCLUDE jedi.inc}
 
 uses
-  SysUtils, Classes, StrUtils,
+  SysUtils, Classes, StrUtils, Types,
   uAnsiStringList, uGlobalTypes;
 
 
@@ -1739,7 +1739,6 @@ begin
   Result := MailGetDomain(A)
 end;
 
-{$ENDIF}
 {$ENDREGION}
 
 
