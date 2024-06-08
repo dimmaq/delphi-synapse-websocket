@@ -68,7 +68,7 @@ begin
   if FThread <> nil then
     Exit;
 
-  FThread := TWorkThreadWebSocket.Create(URL1, FParams, FLog);
+  FThread := TWorkThreadWebSocket.Create(URL3, FParams, FLog);
   FThread.OnTerminate := ThreadTermnated;
 
   FThread.Cookies := FCookies;
