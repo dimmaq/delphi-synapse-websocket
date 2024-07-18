@@ -1,13 +1,14 @@
 # delphi-synapse-websocket
 
-Delphi Websocket
+`Delphi Websocket`
 
-Based on WebSocketUpgrage
+Based on `WebSocketUpgrage`
 
-require 
-openssl 1.1.x https://slproweb.com/products/Win32OpenSSL.html
-github.com/project-jedi/jedi
-github.com/dimmaq/delphi-zlib
-github.com/dimmaq/delphi-synapse
-github.com/dimmaq/delphi-logger
-github.com/dimmaq/AcedUtils
+# Require 
+
+- [openssl 1.1.x](https://slproweb.com/products/Win32OpenSSL.html)
+- [jedi](github.com/project-jedi/jedi)
+- [delphi-zlib](github.com/dimmaq/delphi-zlib)
+- [delphi-synapse](github.com/dimmaq/delphi-synapse)
+- [delphi-logger](github.com/dimmaq/delphi-logger)
+- [AcedUtils](github.com/dimmaq/AcedUtils)
